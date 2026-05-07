@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#2D6A4F">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="FoodLog">
+  <title>食物追蹤 FoodLog</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+<div id="app">
+
+  <!-- 離線提示 -->
+  <div class="offline-bar">📡 離線模式，紀錄已暫存，上線後自動同步</div>
+
+  <!-- ─── 頂部標題 ─────────────────────────────────────── -->
+  <header class="top-bar">
+    <h1 id="page-title">今日飲食</h1>
+    <span class="date-badge" id="today-label"></span>
+  </header>
+
+  <!-- ══════════════════════════════════════════════════════
+       頁面①：首頁 — 今日總覽
+  ══════════════════════════════════════════════════════ -->
+  <section class="page active" id="page-home">
+
+    <!-- 熱量圓環 -->
+    <div class="card">
+      <div class="card-label">今日熱量</div>
+      <div class="ring-wrap">
+        <svg class="ring-svg" width="100" height="100" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="42" fill="none" stroke="#D8F3DC" stroke-width="10"/>
+          <circle id="ring-progress" cx="50" cy="50" r="42" fill="none"
+                  stroke="#40916C" stroke-width="10" stroke-linecap="round"
+                  stroke-dasharray="264" stroke-dashoffset="264"
+                  transform="rotate(-90 50 50)"
+                  style="transition: stroke-dashoffset .8s ease"/>
+        </svg>
+        <div class="ring-info">
+          <h2><span id="total-kcal">0</span> <span>kcal</span></h2>
+          <div class="goal" id="goal-label">目標 1800 kcal</div>
+        </div>
+      </div>
+      <div class="macros-row">
+        <div class="macro-item">
+          <div class="val" id="total-protein">0</div>
+          <div class="unit">g</div>
+          <div class="name">蛋白質</div>
+        </div>
+        <div class="macro-item">
+          <div class="val" id="total-carbs">0</div>
+          <div class="unit">g</div>
+          <div class="name">碳水</div>
+        </div>
+        <div class="macro-item">
+          <div class="val" id="total-fat">0</div>
+          <div class="unit">g</div>
+          <div class="name">脂肪</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 飲食清單 -->
+    <div id="log-list">
+      <div class="empty-state">
+        <div class="icon">🍱</div>
+        <p>今天還沒有飲食紀錄<br>點擊下方相機開始拍照</p>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════
+       頁面②：拍照辨識
+  ══════════════════════════════════════════════════════ -->
+  <section class="page" id="page-camera">
+
+    <div class="camera-zone" id="camera-zone">
+      <video id="video-preview" playsinline autoplay muted></video>
+      <img  id="photo-preview" alt="拍照預覽">
+      <canvas id="capture-canvas" style="display:none"></canvas>
+
+      <div class="camera-placeholder" id="cam-placeholder">
+        <div class="big-icon">📷</div>
+        <p>點擊下方開啟相機<br>或上傳食物照片</p>
+      </div>
+
+      <!-- 快門按鈕（相機開啟後顯示）-->
+      <button class="shutter-ring" id="shutter-btn" style="display:none" aria-label="拍照">
+        <div class="shutter-inner"></div>
+      </button>
+
+      <!-- 分析中遮罩 -->
+      <div class="loading-overlay" id="analyze-loading" style="display:none">
+        <div class="spinner"></div>
+        <p>Gemini AI 辨識中…</p>
+      </div>
+    </div>
+
+    <!-- 控制按鈕 -->
+    <div class="cam-controls">
+      <button class="btn btn-ghost" id="open-camera-btn">📷 開啟相機</button>
+      <label class="btn btn-ghost" style="cursor:pointer">
+        🖼 上傳照片
+        <input type="file" id="file-input" accept="image/*" style="display:none">
+      </label>
+      <button class="btn btn-danger" id="retake-btn" style="display:none">重拍</button>
+    </div>
+
+    <!-- AI 辨識結果 -->
+    <div id="result-area" style="display:none">
+      <div class="result-card" id="result-card">
+        <div class="card-label">AI 辨識結果 — 可調整重量</div>
+        <div id="result-items"></div>
+      </div>
+      <div class="cam-controls" style="margin-top:12px">
+        <button class="btn btn-primary w-full" id="confirm-btn">✓ 確認記錄</button>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════
+       頁面③：每日報告
+  ══════════════════════════════════════════════════════ -->
+  <section class="page" id="page-report">
+
+    <div class="card" id="report-card">
+      <div class="card-label">AI 飲食評價</div>
+      <div id="report-content">
+        <button class="gen-btn" id="gen-report-btn">
+          🤖 產生今日 AI 建議報告
+        </button>
+        <p class="text-muted mt-8" style="text-align:center;font-size:12px">
+          需完成今日飲食紀錄後再產生
+        </p>
+      </div>
+    </div>
+
+    <!-- 今日總計圖表區 -->
+    <div class="card mt-12">
+      <div class="card-label">今日營養分佈</div>
+      <canvas id="macro-chart" height="160"></canvas>
+    </div>
+
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════
+       頁面④：設定
+  ══════════════════════════════════════════════════════ -->
+  <section class="page" id="page-setting">
+
+    <div class="setting-group">
+      <div class="setting-group-title">個人目標</div>
+      <div class="setting-row">
+        <span class="setting-label">每日目標熱量</span>
+        <input class="setting-input" id="s-goal-cal" type="number" placeholder="1800" data-key="每日目標熱量(kcal)">
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">目標類型</span>
+        <select class="setting-input" id="s-goal-type" data-key="目標類型">
+          <option>維持體重</option>
+          <option>減重</option>
+          <option>增肌</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="setting-group">
+      <div class="setting-group-title">API 設定</div>
+      <div class="setting-row">
+        <span class="setting-label">Gemini API Key</span>
+        <input class="setting-input" id="s-gemini-key" type="password" placeholder="AIza…" data-key="Gemini API Key">
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">Apps Script URL</span>
+        <input class="setting-input" id="s-script-url" type="url" placeholder="https://script…" data-key="Apps Script URL">
+      </div>
+    </div>
+
+    <div class="setting-group">
+      <div class="setting-group-title">個人資訊</div>
+      <div class="setting-row">
+        <span class="setting-label">姓名</span>
+        <input class="setting-input" id="s-name" type="text" placeholder="暱稱" data-key="姓名 / 暱稱">
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">每日目標蛋白質 (g)</span>
+        <input class="setting-input" id="s-protein" type="number" placeholder="55" data-key="蛋白質目標(g)">
+      </div>
+    </div>
+
+    <button class="btn btn-primary w-full mt-16" id="save-settings-btn">儲存設定</button>
+
+    <div class="mt-20 text-muted" style="text-align:center;font-size:11px;line-height:1.8">
+      食物追蹤 FoodLog v1.0<br>
+      資料儲存於您的 Google Sheets<br>
+      AI 辨識由 Google Gemini 提供
+    </div>
+
+  </section>
+
+  <!-- ── 底部導覽 ──────────────────────────────────────── -->
+  <nav class="bottom-nav" role="navigation" aria-label="主要導覽">
+    <button class="nav-item active" data-page="home" aria-label="今日總覽">
+      <div class="nav-icon">🏠</div>
+      <div class="nav-label">今日</div>
+    </button>
+    <button class="nav-item" data-page="camera" aria-label="拍照記錄">
+      <div class="nav-cam">📷</div>
+    </button>
+    <button class="nav-item" data-page="report" aria-label="每日報告">
+      <div class="nav-icon">📊</div>
+      <div class="nav-label">報告</div>
+    </button>
+    <button class="nav-item" data-page="setting" aria-label="設定">
+      <div class="nav-icon">⚙️</div>
+      <div class="nav-label">設定</div>
+    </button>
+  </nav>
+
+</div>
+
+<!-- Toast -->
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script src="js/db.js"></script>
+<script src="js/api.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
