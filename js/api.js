@@ -198,7 +198,7 @@ const API = (() => {
     const apiKey = await DB.getSetting("Gemini API Key") || "";
     if (!apiKey) throw new Error("請先在設定頁填入 Gemini API Key");
 
-    const url  = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const url  = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
     const body = {
       contents: [{
         parts: [
