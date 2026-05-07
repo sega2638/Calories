@@ -399,16 +399,31 @@ $("save-settings-btn").addEventListener("click", async () => {
     "s-name"      : "姓名 / 暱稱",
     "s-protein"   : "蛋白質目標(g)"
   };
+
+  // 驗證 Apps Script URL 格式
+  const urlEl  = $("s-script-url");
+  const urlVal = urlEl ? urlEl.value.trim() : "";
+  if (urlVal && !urlVal.startsWith("https://script.google.com/")) {
+    toast("⚠️ Apps Script URL 格式不正確");
+    return;
+  }
+
   for (const [elId, key] of Object.entries(map)) {
     const el = $(elId);
     if (el) {
-      await DB.setSetting(key, el.value);
-      if (navigator.onLine) {
-        try { await API.updateSetting(key, el.value); } catch {}
-      }
+      const val = el.value.trim();
+      // 立即寫入 IndexedDB（確保 API 層下次讀得到）
+      await DB.setSetting(key, val);
     }
   }
-  toast("✓ 設定已儲存");
+
+  // 驗證是否真的存進去了
+  const saved = await DB.getSetting("Apps Script URL");
+  if (saved) {
+    toast("✓ 設定已儲存，URL：" + saved.slice(0, 40) + "…");
+  } else {
+    toast("✓ 設定已儲存");
+  }
 });
 
 // ── 離線狀態偵測 ──────────────────────────────────────────────
