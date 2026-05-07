@@ -199,28 +199,24 @@ const API = (() => {
     if (!apiKey) throw new Error("請先在設定頁填入 Gemini API Key");
 
     const url  = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+
+    // Prompt 只給範例結構，不放中文說明文字在 JSON 欄位裡，避免 Gemini 輸出損毀
+    const prompt = "你是食物辨識助手。請辨識照片中所有食物，用繁體中文命名並估算重量（克）。" +
+      "只回傳 JSON，格式：" +
+      '{"foods":[{"name":"白飯","weight_g":150,"confidence":0.9}],"scene":"午餐便當"}';
+
     const body = {
       contents: [{
         parts: [
-          {
-            inline_data: { mime_type: mimeType, data: base64Image }
-          },
-          {
-            text: `請辨識這張照片中的食物，以繁體中文 JSON 格式回覆（不要其他文字）：
-{
-  "foods": [
-    {
-      "name": "食物名稱",
-      "weight_g": 估算克數(整數),
-      "confidence": 0到1的信心度
-    }
-  ],
-  "scene": "整體場景描述一句話"
-}`
-          }
+          { inline_data: { mime_type: mimeType, data: base64Image } },
+          { text: prompt }
         ]
       }],
-      generationConfig: { temperature: 0.2, maxOutputTokens: 512 }
+      generationConfig: {
+        temperature     : 0.1,
+        maxOutputTokens : 1024,
+        responseMimeType: "application/json"  // 強制純 JSON，避免 markdown fence
+      }
     };
 
     const res  = await fetch(url, {
@@ -228,12 +224,35 @@ const API = (() => {
       headers: { "Content-Type": "application/json" },
       body   : JSON.stringify(body)
     });
+
     const json = await res.json();
     if (json.error) throw new Error(json.error.message);
 
-    const text = json.candidates[0].content.parts[0].text
-                   .replace(/^```json\s*/i, "").replace(/```$/i, "").trim();
-    return JSON.parse(text);
+    const raw = json.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+
+    // 清除可能殘留的 markdown fence
+    const cleaned = raw
+      .replace(/^```json\s*/i, "")
+      .replace(/^```\s*/i, "")
+      .replace(/```\s*$/i, "")
+      .trim();
+
+    // 嘗試直接解析
+    try {
+      return JSON.parse(cleaned);
+    } catch {
+      // fallback：抽出第一個完整 {...} 區塊
+      const match = cleaned.match(/\{[\s\S]*\}/);
+      if (match) {
+        try { return JSON.parse(match[0]); } catch {}
+      }
+      // 最終 fallback：回傳預設值讓使用者手動修改
+      console.warn("[analyzeFood] 解析失敗，原始回傳：", raw);
+      return {
+        foods: [{ name: "未知食物", weight_g: 100, confidence: 0 }],
+        scene: "辨識結果解析失敗，請手動修改"
+      };
+    }
   }
 
   return {
