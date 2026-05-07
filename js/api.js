@@ -18,27 +18,30 @@ const API = (() => {
   }
 
   // ── 基礎請求 ──────────────────────────────────────────────
+  // Apps Script 不支援 CORS preflight，全部改用 GET
+  // 寫入資料用 payload=encodeURIComponent(JSON.stringify({...})) 傳遞
 
   async function _get(params) {
     if (!_baseUrl) await _init();
     if (!_baseUrl) throw new Error("尚未設定 Apps Script URL");
     const qs  = new URLSearchParams(params).toString();
-    const res = await fetch(`${_baseUrl}?${qs}`);
+    const res = await fetch(`${_baseUrl}?${qs}`, { redirect: "follow" });
     const json = await res.json();
     if (json.status === "error") throw new Error(json.message);
     return json.data;
   }
 
+  // 寫入操作也走 GET，把 body 放進 payload 參數
   async function _post(body) {
     if (!_baseUrl) await _init();
     if (!_baseUrl) throw new Error("尚未設定 Apps Script URL");
-    const res = await fetch(_baseUrl, {
-      method : "POST",
-      headers: { "Content-Type": "application/json" },
-      body   : JSON.stringify(body)
+    const { action, ...rest } = body;
+    const params = new URLSearchParams({
+      action,
+      payload: encodeURIComponent(JSON.stringify(rest))
     });
+    const res  = await fetch(`${_baseUrl}?${params.toString()}`, { redirect: "follow" });
     const json = await res.json();
-    // 離線佇列回應
     if (json.status === "queued") return { queued: true, message: json.message };
     if (json.status === "error")  throw new Error(json.message);
     return json.data;
