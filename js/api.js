@@ -7,7 +7,7 @@ const API = (() => {
   let _baseUrl = "";
 
   async function _init() {
-    _baseUrl = await DB.getSetting("appsScriptUrl") || "";
+    _baseUrl = (await DB.getSetting("Apps Script URL")) || "";
   }
 
   function _today() {
@@ -22,8 +22,9 @@ const API = (() => {
   // 寫入資料用 payload=encodeURIComponent(JSON.stringify({...})) 傳遞
 
   async function _get(params) {
-    if (!_baseUrl) await _init();
-    if (!_baseUrl) throw new Error("尚未設定 Apps Script URL");
+    // 每次都重新讀取，確保儲存設定後立即生效
+    _baseUrl = (await DB.getSetting("Apps Script URL")) || "";
+    if (!_baseUrl) throw new Error("尚未設定 Apps Script URL，請先至設定頁填入");
     const qs  = new URLSearchParams(params).toString();
     const res = await fetch(`${_baseUrl}?${qs}`, { redirect: "follow" });
     const json = await res.json();
@@ -33,8 +34,9 @@ const API = (() => {
 
   // 寫入操作也走 GET，把 body 放進 payload 參數
   async function _post(body) {
-    if (!_baseUrl) await _init();
-    if (!_baseUrl) throw new Error("尚未設定 Apps Script URL");
+    // 每次都重新讀取，確保儲存設定後立即生效
+    _baseUrl = (await DB.getSetting("Apps Script URL")) || "";
+    if (!_baseUrl) throw new Error("尚未設定 Apps Script URL，請先至設定頁填入");
     const { action, ...rest } = body;
     const params = new URLSearchParams({
       action,
